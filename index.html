@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Test OCR</title>
+</head>
+<body>
+	<video id="video" width="640" height="480" autoplay></video>
+	<button id="snap">Snap Photo</button>
+	<canvas id="canvas" width="640" height="480"></canvas>
+	<p id="text"></p>
+	<script src="ocrad.js"></script>
+	<script>
+
+		window.addEventListener("DOMContentLoaded", function() {
+			var canvas = document.getElementById("canvas"),
+				context = canvas.getContext("2d"),
+				video = document.getElementById("video"),
+				videoObj = { "video": true },
+				errBack = function(error) {
+					console.log("Video capture error: ", error.code); 
+				};
+
+			// Stream video
+			if(navigator.getUserMedia) { 
+				navigator.getUserMedia(videoObj, function(stream) {
+					video.src = stream;
+					video.play();
+				}, errBack);
+			} else if(navigator.webkitGetUserMedia) { 
+				navigator.webkitGetUserMedia(videoObj, function(stream){
+					video.src = window.webkitURL.createObjectURL(stream);
+					video.play();
+				}, errBack);
+			} else if(navigator.mozGetUserMedia) { 
+				navigator.mozGetUserMedia(videoObj, function(stream){
+					video.src = window.URL.createObjectURL(stream);
+					video.play();
+				}, errBack);
+			}
+
+			// Capture photo from video
+			document.getElementById("snap").addEventListener("click", function() {
+				context.drawImage(video, 0, 0, video.width, video.height);
+				imageData = context.getImageData(0,0,canvas.width,canvas.height);
+				superContrast(imageData,isDark(imageData));
+				context.putImageData(imageData,0,0);
+				var string = OCRAD(imageData);
+				document.getElementById("text").innerHTML = string;
+			});
+		}, false);
+
+		/**
+		 * Detects if the image is dark
+		 */
+		function isDark(imageData){
+			var sum = 0;
+			for (var i = 0; i < imageData.data.length; i = i + 4) {
+				var sumi = imageData.data[i] * imageData.data[i+1] * imageData.data[i+2];
+				sum += Math.pow(sumi,1/3);
+			}
+			if(sum/(imageData.data.length/4) > 200){
+				return false;
+			}
+			return true;
+		}
+
+		/**
+		 * Applies contrast to an image to detect letters
+		 */
+		function superContrast(imageData,isDark){
+			for (var i = 0; i < imageData.data.length; i = i + 4) {
+				var med = imageData.data[i] * imageData.data[i+1] * imageData.data[i+2];
+				med = Math.pow(med,1/3);
+				var limit = 200;
+				if(med < limit){
+					imageData.data[i] = (isDark)?255:0;
+					imageData.data[i+1] = (isDark)?255:0;
+					imageData.data[i+2] = (isDark)?255:0;
+				}else{
+					imageData.data[i] = (isDark)?0:255;
+					imageData.data[i+1] = (isDark)?0:255;
+					imageData.data[i+2] = (isDark)?0:255;
+				}
+			}
+		}
+
+	</script>
+</body>
+</html>
