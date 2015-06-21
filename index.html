@@ -8,6 +8,8 @@
 	<button id="snap">Snap Photo</button>
 	<canvas id="canvas" width="640" height="480"></canvas>
 	<p id="text"></p>
+	<hr>
+	<div id="chars_container"></div>
 	<script src="ocrad.js"></script>
 	<script>
 
@@ -44,6 +46,7 @@
 				imageData = context.getImageData(0,0,canvas.width,canvas.height);
 				superContrast(imageData,isDark(imageData));
 				context.putImageData(imageData,0,0);
+				getChars(imageData);
 				var string = OCRAD(imageData);
 				document.getElementById("text").innerHTML = string;
 			});
@@ -65,13 +68,13 @@
 		}
 
 		/**
-		 * Applies contrast to an image to detect letters
+		 * Applies contrast to an image to detect chars
 		 */
 		function superContrast(imageData,isDark){
 			for (var i = 0; i < imageData.data.length; i = i + 4) {
 				var med = imageData.data[i] * imageData.data[i+1] * imageData.data[i+2];
 				med = Math.pow(med,1/3);
-				var limit = 200;
+				var limit = 170;
 				if(med < limit){
 					imageData.data[i] = (isDark)?255:0;
 					imageData.data[i+1] = (isDark)?255:0;
@@ -83,6 +86,92 @@
 				}
 			}
 		}
+
+		function getChars(imageData){
+			var pos = 0;
+			var chars = [];
+			var checked = [];
+			checked[Math.floor(imageData.length/4)] = undefined;
+			var container = document.getElementById("chars_container");
+			container.innerHTML = '';
+			for (var i = 0; i < imageData.data.length; i = i + 4){
+				if(imageData.data[i] != 255 && typeof checked[i/4] == 'undefined'){
+					console.log('otro');
+					var startx = pos%imageData.width;
+					var starty = Math.floor(pos/imageData.width);
+					
+					var char = findChar(imageData, checked, startx, starty, startx, starty, startx, starty);
+					var canvas = document.createElement("canvas");
+					canvas.width = 1 + char.maxx - char.minx;
+					canvas.height = 1 + char.maxy - char.miny;
+					var base_context = document.getElementById("canvas").getContext("2d");
+					var charData = base_context.getImageData(char.minx,char.miny,canvas.width,canvas.height);
+					var context = canvas.getContext("2d");
+					context.putImageData(charData,0,0);
+					var value = document.createElement("span");
+					try{
+						value.innerHTML = '<br>'+OCRAD(charData);
+					}catch(ex){}
+					container.appendChild(value);
+					container.appendChild(canvas);
+					chars.push(charData);
+				}
+				pos++;
+			}
+
+			return chars;
+		}
+
+		function findChar(imageData, checked, minx, miny, maxx, maxy, x, y){
+			if(x >= 0 && y >= 0 && 
+			   4*(imageData.width*y+x) < imageData.data.length && 
+			   typeof checked[imageData.width*y+x] == 'undefined'){
+			   	if(x > maxx){
+					maxx = x;
+				}
+				if(y > maxy){
+					maxy = y;
+				}
+				if(x < minx){
+					minx = x;
+				}
+				if(y < miny){
+					miny = y;
+				}
+				checked[imageData.width*y+x] = true;
+				for (var i = -1; i <= 1; i++){
+					for (var e = -1; e <= 1; e++){
+						if(imageData.data[4*(imageData.width*y+x)] == 0){
+							try{
+
+								var rres = findChar(imageData, checked, minx, miny, maxx, maxy, x+i, y+e);
+								if(rres.maxx > maxx){
+									maxx = rres.maxx;
+								}
+								if(rres.maxy > maxy){
+									maxy = rres.maxy;
+								}
+								if(rres.minx < minx){
+									minx = rres.minx;
+								}
+								if(rres.miny < miny){
+									miny = rres.miny;
+								}
+							}catch(ex){
+
+							}
+						}
+					}
+				}
+			}
+			return {
+				minx : minx,
+				maxx : maxx,
+				miny : miny,
+				maxy : maxy,
+			};
+		}
+
 
 	</script>
 </body>
