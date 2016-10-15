@@ -23,10 +23,12 @@
 				};
 
 			// Stream video
+
+			navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 			if(navigator.getUserMedia) { 
 				navigator.getUserMedia(videoObj, function(stream) {
-					video.src = stream;
-					video.play();
+					video.src = window.URL.createObjectURL(stream);
+					//video.play();
 				}, errBack);
 			} else if(navigator.webkitGetUserMedia) { 
 				navigator.webkitGetUserMedia(videoObj, function(stream){
